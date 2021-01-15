@@ -4,10 +4,8 @@ services:
   namenode:
     image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
     container_name: namenode
-    restart: always
     ports:
       - 9870:9870
-      - 9000:9000
     volumes:
       - hadoop_namenode:/hadoop/dfs/name
     environment:
@@ -18,7 +16,6 @@ services:
   datanode:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
     container_name: datanode
-    restart: always
     ports:
       - 9864:9864
     volumes:
@@ -31,7 +28,9 @@ services:
   resourcemanager:
     image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
     container_name: resourcemanager
-    restart: always
+    depends_on:
+      - namenode
+      - datanode
     ports:
       - 8088:8088
     environment:
@@ -42,7 +41,6 @@ services:
   nodemanager1:
     image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
     container_name: nodemanager
-    restart: always
     ports:
       - 8042:8042
     environment:
@@ -53,7 +51,6 @@ services:
   historyserver:
     image: bde2020/hadoop-historyserver:2.0.0-hadoop3.2.1-java8
     container_name: historyserver
-    restart: always
     ports:
       - 8188:8188
     environment:
@@ -63,7 +60,65 @@ services:
     env_file:
       - ./hadoop.env
 
+  hive-server:
+    image: mikejliu/hive
+    container_name: hive-server
+    env_file:
+      - ./hadoop.env
+    command: hive --service hiveserver2
+    environment:
+      SERVICE_PRECONDITION: "hive-metastore:9083"
+    ports:
+      - "10000:10000"
+  hive-metastore:
+    image: mikejliu/hive
+    container_name: hive-metastore
+    env_file:
+      - ./hadoop.env
+    environment:
+      SERVICE_PRECONDITION: "namenode:9870 datanode:9864 hive-metastore-mysql:3306"
+    ports:
+      - "9083:9083"
+  hive-metastore-mysql:
+    image: library/mysql:5.7
+    container_name: hive-metastore-mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpass
+      - MYSQL_USER=hive
+      - MYSQL_PASSWORD=hive
+      - MYSQL_DATABASE=metastore
+
+  spark-master:
+    image: bde2020/spark-master:3.0.1-hadoop3.2
+    container_name: spark-master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    environment:
+      - INIT_DAEMON_STEP=setup_spark
+    env_file:
+      - ./hadoop.env
+
+  spark-worker1:
+    image: bde2020/spark-worker:3.0.1-hadoop3.2
+    container_name: spark-worker1
+    depends_on:
+      - spark-master
+    ports:
+      - "8081:8081"
+    env_file:
+      - ./hadoop.env
+
+  hue:
+    image: gethue/hue
+    ports:
+    - 8888:8888
+
 volumes:
   hadoop_namenode:
   hadoop_datanode:
   hadoop_historyserver:
+
+networks:
+  default:
+    name: hadoop
