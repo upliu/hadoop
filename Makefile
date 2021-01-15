@@ -19,5 +19,8 @@ wordcount:
 	docker run --network ${DOCKER_NETWORK} --env-file ${ENV_FILE} bde2020/hadoop-base:$(current_branch) hdfs dfs -rm -r /output
 	docker run --network ${DOCKER_NETWORK} --env-file ${ENV_FILE} bde2020/hadoop-base:$(current_branch) hdfs dfs -rm -r /input
 
-build-mikejliu-hive:
+build-mikejliu:
 	docker build -t mikejliu/hive ./hive
+	docker build -t mikejliu/spark-base ./spark-base
+	docker build -t mikejliu/spark-master ./spark-master
+	docker build -t mikejliu/spark-worker ./spark-worker
